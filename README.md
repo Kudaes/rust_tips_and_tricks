@@ -1,5 +1,5 @@
 # rust_tips_and_tricks
-This repo is just a collection of Rust tips and tricks **useful to interact with Windows API.** 
+This repo is just a collection of Rust tips and tricks **useful to interact with the Windows API.** 
 
 **This is not a tutorial, the content in this repo won't teach you how to code in Rust.** The only goal of this repo is to share the knowledge that I have obtained during the last years implementing offensive tools in Rust, hoping that this tips and tricks help you to solve some of the annoying issues that I have found at the time of interacting with Windows API from this language. 
 Also, below I add a snippet of how to start a new project of these characteristics using Dinvoke_rs, hoping that this will solve any pending doubts and will allow anyone to start using the project.
@@ -10,8 +10,8 @@ I don't consider myself an expert or guru in Rust, which means that they could b
 
 - [Getting started with DInvoke_rs](#DInvoke_rs)
 - [Structs and Types](#structs-and-types)
-  - [Definition](#definition-of-structs)
-  - [Instantiation](#instantiation-of-structs)
+  - [Definition of structs](#definition-of-structs)
+  - [Instantiation of structs](#instantiation-of-structs)
   - [NTSTATUS](#ntstatus)
 - [Pointers](#pointers)
   - [Casting](#casting)
@@ -36,9 +36,9 @@ I don't consider myself an expert or guru in Rust, which means that they could b
 # DInvoke_rs
 To me, the most straighforward way to create a new tool in Rust that requires the interaction with the Windows API is to download the [Dinvoke_rs](https://github.com/Kudaes/DInvoke_rs/tree/main/dinvoke_rs) project and use it as a template, adding my code on top of it. Dinvoke_rs offers three main functionalities:
 
-* DInvoke: It allows to dynamically find and execute unmanaged code. This is perfect since it allows us to call any function of WinAPI withtout leaving any trace in the final PE IAT, increasing our OPSEC.
-* Manualmap: Manually maps any PE as LoadLibrary (or the operative system) would do, both from disk and memory.
-* Overload: It manually maps a PE in a file-backed memory section of the current process.
+* **DInvoke**: It allows to dynamically find and execute unmanaged code. This is perfect since it allows us to call any function of WinAPI withtout leaving any trace in the final PE IAT, increasing our OPSEC.
+* **Manualmap**: Manually maps any PE as LoadLibrary (or the operative system) would do, both from disk and memory.
+* **Overload**: It manually maps a PE in a file-backed memory section of the current process.
 
 In case that you only need the DInvoke functionality, I have created a [minimalist branch]() on the repository that contains the minimum code required in order to use that crate. In case that you want to use the rest of the functionalities described before, just download the code from the main branch.
 
@@ -82,12 +82,12 @@ let dwsize = 354 as usize; // Allocate as much memory as you need
 let size: *mut usize = std::mem::transmute(&dwsize);
 let handle = HANDLE {0 : -1}; // Current process
 let ret = dinvoke::nt_allocate_virtual_memory(
-    handle, 
-    base_address, 
-    zero_bits, 
-    size, 
-    MEM_COMMIT | MEM_RESERVE, 
-    PAGE_READWRITE);
+          handle, 
+          base_address, 
+          zero_bits, 
+          size, 
+          MEM_COMMIT | MEM_RESERVE, 
+          PAGE_READWRITE);
 
 if ret == 0
 {
@@ -95,7 +95,7 @@ if ret == 0
 }
 else
 {
-	println!("rip");
+    println!("rip");
 }
 ``` 
 
@@ -175,9 +175,35 @@ impl Default for PeMetadata {
 ```
 
 ## Instantiation of structs
+The best way of intantiating a struct in case that you need to modify its fields before sending it as an input for some WinAPI call is to use the trait `Default`:
+```rust
+let handle: HANDLE = HANDLE::default();
+```
+Other ways of instantiating a struct, specially if you gonna use it as an ouput parameter (and therefore you just need to reserve the corresponding memory) are these two:
+```rust
+let create_info: PS_CREATE_INFO = std::mem::zeroed();
+```
+```rust
+let unused: Vec<u8> = vec![0;size_of::<HANDLE>()];
+let handle: *mut HANDLE = std::mem::transmute(unused.as_ptr());
+```
+Obviously, this last option is only good when you need to directly create a pointer to the struct.
+
 ## NTSTATUS
+NTSTATUS is a struct heavily used in the NT API, and in Rust you can define it as an i32. There is not much mistery on this topic, just know that you can obtain the hex value from a NTSTATUS printing it like this:
+```rust
+let ret = dinvoke::nt_allocate_virtual_memory(
+          handle, 
+          base_address, 
+          zero_bits, 
+          size, 
+          MEM_COMMIT | MEM_RESERVE, 
+          PAGE_READWRITE);
 
+println!("NTSTATUS: {:x}", ret);
 
+```
+Then you can check this hex value in the [official documentation](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-erref/596a1078-e883-4972-9bbc-49e60bebca55) and get a little bit of info about why is your code failing (warning: It is probable that you will end up crying loudly after obtaining the tenth "Invalid Parameter" NTSTATUS in a row).
 ### 
 
 
