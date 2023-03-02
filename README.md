@@ -13,6 +13,7 @@ I don't consider myself an expert or guru in Rust, which means that they could b
   - [Definition of structs](#definition-of-structs)
   - [Instantiation of structs](#instantiation-of-structs)
   - [NTSTATUS](#ntstatus)
+  - [Function signatures](#function-signatures)
 - [Pointers](#pointers)
   - [Casting](#casting)
   - [Memory addresses](#memory-addresses)
@@ -187,7 +188,7 @@ let create_info: PS_CREATE_INFO = std::mem::zeroed();
 let unused: Vec<u8> = vec![0;size_of::<HANDLE>()];
 let handle: *mut HANDLE = std::mem::transmute(unused.as_ptr());
 ```
-Obviously, this last option is only good when you need to directly create a pointer to the struct. In any other case is better to use the other two alternatives.
+Obviously, this very last option is only good when you need to directly create a pointer to the struct. In any other case, it is better to use the other two alternatives.
 
 ## NTSTATUS
 NTSTATUS is a struct heavily used in the NT API, and in Rust you can define it as an `i32`. There is not much mistery on this topic, just know that you can obtain the hex value of a NTSTATUS printing it like this:
@@ -204,10 +205,52 @@ println!("NTSTATUS: {:x}", ret);
 
 ```
 Then you can check this hex value in the [official documentation](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-erref/596a1078-e883-4972-9bbc-49e60bebca55) and get a little bit of info about why is your code failing (warning: It is probable that you will end up crying loudly after obtaining the tenth "Invalid Parameter" NTSTATUS in a row).
-### 
 
+## Function signatures
+If you are using DInvoke to make WinAPI calls, you will need to define the signature for every function that you are dynamically calling. This is something similar to what is done in C#, where in order to create a Delegate you first need to know the input and output parameters of the function located at certain memory address.
+Defining a WinAPI function signature is very easy:
+* If this call is contained in what we know as Win32 (documented Windows API), then look for the signature in the crate [windows](https://microsoft.github.io/windows-docs-rs/doc/windows/index.html).
+* If the call belongs to the undocumented part of the WinAPI, get the signature from the crate [ntapi](https://docs.rs/ntapi/latest/ntapi/)-
+* If it is not defined in any of those crates, you will need to manually create the signature. Take a look at the existing examples in DInvoke in order to success in this task.
 
+Once you know which parameters are expected and returned, go to the `data` crate and just define the function as a new data type:
+```rust
+pub type SomeFunction = unsafe extern "system" fn (HANDLE, *mut PVOID, usize, *mut usize, u32, u32) -> i32; 
+```
+Very often you will find that some parameters are not directly defined:
+```rust
+pub unsafe extern "system" fn NtWriteVirtualMemory(
+    ProcessHandle: HANDLE,
+    BaseAddress: PVOID,
+    Buffer: PVOID,
+    BufferSize: SIZE_T,
+    NumberOfBytesWritten: PSIZE_T
+) -> NTSTATUS
+``` 
 
+[Here](https://docs.rs/ntapi/latest/ntapi/ntmmapi/fn.NtWriteVirtualMemory.html) for example, the parameter BufferSize is defined as a SIZE_T. If you follow the link, you will see that the SIZE_T is defined this way:
+```rust
+type SIZE_T = ULONG_PTR;
+```
+And then, you need to follow another link to obtain the real basic type behind that parameter:
+```rust
+type ULONG_PTR = usize;
+```
+Here you have several options in order to add the signature for NtWriteVirtualMemory:
+1) You can import the types defined in the crate ntapi, but you will add that dependency to your project.
+2) You can manually define the SIZE_T type. Very tedious if you have a huge amount of new data types.
+3) **Or you can do what I ususally do**. You can define the parameter BufferSize as a usize, and everything will work perfectly.
+
+The same way, sometimes you will find that some parameters are defined as structs of a single field. For example, you can have certain WinAPI function expects as an input parameter a struct defined this way:
+```rust
+#[repr(C)]
+pub struct Struct {
+    pub 0: i32
+}
+```
+Here you have almost the same situation than before. If you want, you can import the struct from the corresponding crate, or you can define the struct manually, but for me the simplest way of doing this is to consider that the WinAPI function expects an `i32`, getting rid of the struct and making it easier to implement the code. 
+
+I think that the only struct like this that I keep in my projects is [HANDLE](https://microsoft.github.io/windows-docs-rs/doc/windows/Win32/Foundation/struct.HANDLE.html) (which has a single field, an isize), and I do so because it is a very commonly used struct and I feel like its presence makes the final code easier to read for other people. 
 
 
 ## Contribution
