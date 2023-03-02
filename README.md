@@ -107,7 +107,7 @@ If you don't care about or do not need the advantages that DInvoke_rs offers, it
 ## Definition of structs
 In many situations you will need to use several structs in order to interact with WinAPI. The easiest way to use these structs is by import them directly from the official crates [windows](https://microsoft.github.io/windows-docs-rs/doc/windows/index.html) and [ntapi](https://docs.rs/ntapi/latest/ntapi/). By doing so, you won't need to define them manually.
 
-Although this is very convenient, I have noticed that not all the structs in those crates are well defined. The vast majority of cases where the struct definition was wrong is due to incorrect number of the struct fields which prevents to use the struct efficiently, but in some cases even the size of the struct was wrong.
+Although this is very convenient, I have noticed that not all the structs in those crates are well defined. The vast majority of cases where the struct definition was wrong is due to an incorrect number of fields which prevents to use the struct efficiently, but in some cases even the size of the struct was wrong.
 
 Either the struct is poorly defined or it is not defined at all, you can define your own structs very easily (preferably in the `data` crate):
 
@@ -120,7 +120,7 @@ pub struct SYSTEM_HANDLE_INFORMATION {
 ```
 By default, you will need to add the `#[repr(C)]` attribute to keep the fields order, otherwise Rust may change that order randomly at compilation. 
 
-On the other hand, those struct fields that are arrays of undetermined size are commonly defined in Rust as arrays of one single element. For example:
+On the other hand, some structs have fields that are arrays of an undetermined size and those fields are commonly defined in Rust as an array of one single element. For example:
 ```rust
 #[repr(C)]
 pub struct SYSTEM_HANDLE_INFORMATION {
@@ -128,7 +128,7 @@ pub struct SYSTEM_HANDLE_INFORMATION {
     pub Handles: [SYSTEM_HANDLE_TABLE_ENTRY_INFO; 1],
 }
 ```
-In this scenario, I have noticed that is way better to manually define the struct by myself instead of directly import it as it is from the official crates, allowing me to replace the one element array with a dynamic size vector:
+In this scenario, I have noticed that is way better to manually define the struct in your code instead of directly import it as it is from the official crates, which will allow you to replace the one element array with a dynamic size vector:
 ```rust
 #[repr(C)]
 pub struct SYSTEM_HANDLE_INFORMATION {
@@ -137,7 +137,7 @@ pub struct SYSTEM_HANDLE_INFORMATION {
 }
 ```
 
-Finally, I recommend to add the trait Default for any defined struct in case that you need to instantiate it somewhere else in your code. If the struct is solely composed of basic type field, you will be able to automatically create this method by using the `#[derive(Copy, Clone, Default)]` attribute; otherwise, you will need to manually implement it:
+Finally, I recommend to add the trait Default for any defined struct in case that you need to instantiate it somewhere else in your code. If the struct is solely composed of basic type fields, you will be able to automatically create this method by using the `#[derive(Copy, Clone, Default)]` attribute; otherwise, you will need to manually implement it:
 ```rust
 // Automatically provided Default trait
 #[repr(C)]
@@ -179,7 +179,7 @@ The best way of intantiating a struct in case that you need to modify its fields
 ```rust
 let handle: HANDLE = HANDLE::default();
 ```
-Other ways of instantiating a struct, specially if you gonna use it as an ouput parameter (and therefore you just need to reserve the corresponding memory) are these two:
+Other ways of instantiating a struct, specially if you are gonna use it only as an ouput parameter (and therefore you just need to reserve the corresponding memory) are these two:
 ```rust
 let create_info: PS_CREATE_INFO = std::mem::zeroed();
 ```
@@ -187,10 +187,10 @@ let create_info: PS_CREATE_INFO = std::mem::zeroed();
 let unused: Vec<u8> = vec![0;size_of::<HANDLE>()];
 let handle: *mut HANDLE = std::mem::transmute(unused.as_ptr());
 ```
-Obviously, this last option is only good when you need to directly create a pointer to the struct.
+Obviously, this last option is only good when you need to directly create a pointer to the struct. In any other case is better to use the other two alternatives.
 
 ## NTSTATUS
-NTSTATUS is a struct heavily used in the NT API, and in Rust you can define it as an i32. There is not much mistery on this topic, just know that you can obtain the hex value from a NTSTATUS printing it like this:
+NTSTATUS is a struct heavily used in the NT API, and in Rust you can define it as an `i32`. There is not much mistery on this topic, just know that you can obtain the hex value of a NTSTATUS printing it like this:
 ```rust
 let ret = dinvoke::nt_allocate_virtual_memory(
           handle, 
