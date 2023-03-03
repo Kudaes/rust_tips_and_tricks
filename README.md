@@ -129,7 +129,7 @@ pub struct SYSTEM_HANDLE_INFORMATION {
     pub Handles: [SYSTEM_HANDLE_TABLE_ENTRY_INFO; 1],
 }
 ```
-In this scenario, I have noticed that is way better to manually define the struct in your code instead of directly import it as it is from the official crates, which will allow you to replace the one element array with a dynamic size vector:
+In this situation, I have noticed that is way better to manually define the struct in your code instead of directly import it as it is from the official crates, which will allow you to replace the one element array with a dynamic size vector:
 ```rust
 #[repr(C)]
 pub struct SYSTEM_HANDLE_INFORMATION {
@@ -210,7 +210,7 @@ Then you can check this hex value in the [official documentation](https://learn.
 If you are using DInvoke to make WinAPI calls, you will need to define the signature for every function that you are dynamically calling. This is something similar to what is done in C#, where in order to create a Delegate you first need to know the input and output parameters of the function located at certain memory address.
 Defining a WinAPI function signature is very easy:
 * If this call is contained in what we know as Win32 (documented Windows API), then look for the signature in the crate [windows](https://microsoft.github.io/windows-docs-rs/doc/windows/index.html).
-* If the call belongs to the undocumented part of the WinAPI, get the signature from the crate [ntapi](https://docs.rs/ntapi/latest/ntapi/)-
+* If the call belongs to the undocumented part of the WinAPI, get the signature from the crate [ntapi](https://docs.rs/ntapi/latest/ntapi/).
 * If it is not defined in any of those crates, you will need to manually create the signature. Take a look at the existing examples in DInvoke in order to success in this task.
 
 Once you know which parameters are expected and returned, go to the `data` crate and just define the function as a new data type:
@@ -228,7 +228,7 @@ pub unsafe extern "system" fn NtWriteVirtualMemory(
 ) -> NTSTATUS
 ``` 
 
-[Here](https://docs.rs/ntapi/latest/ntapi/ntmmapi/fn.NtWriteVirtualMemory.html) for example, the parameter BufferSize is defined as a SIZE_T. If you follow the link, you will see that the SIZE_T is defined this way:
+[Here](https://docs.rs/ntapi/latest/ntapi/ntmmapi/fn.NtWriteVirtualMemory.html) for example, the parameter BufferSize is defined as a `SIZE_T`. If you follow the link, you will see that the `SIZE_T` is defined this way:
 ```rust
 type SIZE_T = ULONG_PTR;
 ```
@@ -236,21 +236,45 @@ And then, you need to follow another link to obtain the real basic type behind t
 ```rust
 type ULONG_PTR = usize;
 ```
-Here you have several options in order to add the signature for NtWriteVirtualMemory:
-1) You can import the types defined in the crate ntapi, but you will add that dependency to your project.
-2) You can manually define the SIZE_T type. Very tedious if you have a huge amount of new data types.
-3) **Or you can do what I ususally do**. You can define the parameter BufferSize as a usize, and everything will work perfectly.
+Here you have several options in order to add the signature for `NtWriteVirtualMemory`:
+1) You can import the types defined in the crate `ntapi`, but you will add that dependency to your project.
+2) You can manually define the `SIZE_T` data type. Very tedious if you have a huge amount of new data types.
+3) **Or you can do what I usually do**. You can define the parameter BufferSize as a `usize`, and everything will work perfectly.
 
-The same way, sometimes you will find that some parameters are defined as structs of a single field. For example, you can have certain WinAPI function expects as an input parameter a struct defined this way:
+The same way, sometimes you will find that some parameters are defined as structs of a single field. For example, you could have certain WinAPI function that expects as an input parameter a struct defined this way:
 ```rust
 #[repr(C)]
 pub struct Struct {
     pub 0: i32
 }
 ```
-Here you have almost the same situation than before. If you want, you can import the struct from the corresponding crate, or you can define the struct manually, but for me the simplest way of doing this is to consider that the WinAPI function expects an `i32`, getting rid of the struct and making it easier to implement the code. 
+Here you have almost the same situation than before. If you want, you can import the struct from the corresponding crate, or you can define the struct manually, but for me the simplest way of doing this is to consider that the WinAPI function expects an `i32` direvtly, getting rid of the struct and making it easier to implement the code. 
 
 I think that the only struct like this that I keep in my projects is [HANDLE](https://microsoft.github.io/windows-docs-rs/doc/windows/Win32/Foundation/struct.HANDLE.html) (which has a single field, an isize), and I do so because it is a very commonly used struct and I feel like its presence makes the final code easier to read for other people. 
 
+# Pointers
+## Casting
+Usually you will need to cast between different types of pointers. The most common case is when you have a struct pointer and you have to cast it to a PVOID pointer (which in Rust is defined as *mut c_void) before passing it to any WinAPI call.
+When you are dealing with basic type pointers, you can cast between them using the keyword `as`: 
+```rust
+let a: *mut i32 = get_i32_mut();
+let b: *mut u64 = a as *mut u64;
+```
+However, this only works when you are dealing with basic type pointers, and most of the time you will be dealing with WinAPI structs and types pointers. In this case, you can use the function `std::mem::transmute()`:
+```rust
+let a: *mut ComplexStruct = get_complexstruct_pointer();
+let b: PVOID = std::mem::transmute(a);
+```
+You can also use the method `transmute()` to get a pointer to a struct or any other data type using the special character `&`:
+```rust
+let a: i32 = 238i32;
+let b: PVOID = std::mem::transmute(&a);
+let c: *mut PVOID = std::mem::transmute(&b);
+```
+```rust
+let a: ComplexStruct = ComplexStruct::default();
+let b: *mut ComplexStruct = std::mem::transmute(&a);
+```
+And if you `use std::mem;` at the top of your code you can get rid of the `std::mem` part each time you call the function `transmute()`.
 
 ## Contribution
