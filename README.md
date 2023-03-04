@@ -18,7 +18,7 @@ I don't consider myself an expert or guru in Rust, which means that they could b
   - [Casting](#casting)
   - [Memory addresses](#memory-addresses)
   - [Arithmetic operations](#arithmetic-operations)
-- [Compiling your code](#resources)
+- [Compiling your code](#compiling-your-code)
   - [Release](#release)
   - [Compile to dll](#compile-to-dll)
   - [PE size](#pe-size)
@@ -275,6 +275,34 @@ let c: *mut PVOID = std::mem::transmute(&b);
 let a: ComplexStruct = ComplexStruct::default();
 let b: *mut ComplexStruct = std::mem::transmute(&a);
 ```
-And if you `use std::mem;` at the top of your code you can get rid of the `std::mem` part each time you call the function `transmute()`.
+## Memory addresses
+Since memory addresses have different size depending on the system architecture, the best way to deal with them is using the type `usize` or `isize`. These data types have a 4/8 bytes size depending on whether the operative system is x86 or x64, which makes them perfect for the task. Also, they will allow you to perform arithmetic operations over the memory address as we will see in the next section.
+
+You can directly convert any pointer into an `usize` using the keyword `as`. Also, memory addresses can be printed using the hex format placeholder `{:x}`:
+```rust
+let handle: *mut HANDLE = get_pointer();
+let handle_addr = handle as usize;
+println!("The memory address that the variable handle is pointing to is {:x}", handle_addr);
+```
+You can also obtain the memory base address of a function or a basic type variable this way:
+```rust
+fn main() 
+{
+    unsafe
+    {
+        let addr: usize = (main as *const()) as usize;
+        println!("main() base memory address 0x{:x}", addr);
+        let number = 15i32;
+        let number_addr = (number as *const i32) as usize;
+        println!("Memory address of the variable number: 0x{:x}", number_addr);
+    }
+}
+```
+To obtain the memory address of a varible that is not of a basic data type, you need to use once again the method `transmute`:
+```rust
+let handle: HANDLE = HANDLE::default();
+let handle_addr: usize = std::mem::transmute(&handle);
+println!("The memory address where the variable handle is located is 0x{:x}", handle_addr);
+``
 
 ## Contribution
