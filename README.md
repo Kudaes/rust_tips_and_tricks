@@ -284,7 +284,7 @@ let handle: *mut HANDLE = get_pointer();
 let handle_addr = handle as usize;
 println!("The memory address that the variable handle is pointing to is {:x}", handle_addr);
 ```
-You can also obtain the memory base address of a function or a basic type variable this way:
+You can also obtain the memory address of a function or a basic type variable this way:
 ```rust
 fn main() 
 {
@@ -303,6 +303,6 @@ To obtain the memory address of a varible that is not of a basic data type, you 
 let handle: HANDLE = HANDLE::default();
 let handle_addr: usize = std::mem::transmute(&handle);
 println!("The memory address where the variable handle is located is 0x{:x}", handle_addr);
-``
+```
 
 ## Contribution
