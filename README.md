@@ -18,10 +18,9 @@ I don't consider myself an expert or guru in Rust, which means that they could b
   - [Casting](#casting)
   - [Memory addresses](#memory-addresses)
   - [Arithmetic operations](#arithmetic-operations)
-- [Compiling your code](#compiling-your-code)
-  - [Release](#release)
+- [Compile](#compile)
+  - [Reducing PE size](#reducing-pe-size)
   - [Compile to dll](#compile-to-dll)
-  - [PE size](#pe-size)
 - [Issues](#issues)
   - [Default() and transmute()](#default()-and-transmute())
   - [VCRuntime](#vcruntime)
@@ -304,5 +303,58 @@ let handle: HANDLE = HANDLE::default();
 let handle_addr: usize = std::mem::transmute(&handle);
 println!("The memory address where the variable handle is located is 0x{:x}", handle_addr);
 ```
+## Arithmetic operations
+There are several ways to increment/decrement a pointer in Rust, and this is required in many situations that involve the WinAPI. To me, the best way to increment or decrement a pointer is by using the functions `add()` and `sub()`. These functions expect one single input parameter, which is the offset to calculate from the starting pointer. 
 
-## Contribution
+Take into account that the final offset is different depending on the type of the pointer. A `add(1)` will increment by 8 bits a `*mut i8`, by 32 bits a `*mut i32 and by `size_of::<T>()` a `*mut T` pointer.
+```rust
+let mut ptr: *mut u8 = get_pointer_to_buffer();
+println!("{}", *ptr); // First u8 in the buffer
+ptr = ptr.add(1); // Now ptr points to start_of_buffer + 8 cause u8 has a size of 8 bites;
+println!("{}", *ptr); // Second u8 in the buffer
+ptr = ptr.add(2); // ptr points to start_of_buffer + (8 * 3);
+println!("{}", *ptr); // Fourth u8 in the buffer
+```
+You can also cast the pointer into a `usize`, then add or sub any desired offset (in bits):
+```rust
+let ptr: usize = get_pointer_to_buffer() as usize; // get_pointer_to_buffer() returns a basic type pointer, thats why it can be casted to usize without using transmute()
+let ptr2: *mut u32 = (ptr + 2) as *mut u32;
+println!("{}", *ptr2); // Here we would be printing the 32 bits unsigned number located at start_of_buffer + 2;
+```
+Just remember that the keyword `as` can only be used with basic type pointers; in any other case, use `transmute()`.
+
+# Compile
+## Reducing PE size
+By default, rust compiler optimizes for execution speed, compilation speed and ease of debugging. This leads to bigger binaries size, which can be inappropiate for offensive tools.
+There are several compiling options you can use to reduce the final binary size. For that, you just need to add the following to `Cargo.toml`:
+```rust
+[profile.release]
+opt-level = 'z'     # Optimize for size
+lto = true          # Enable link-time optimization
+codegen-units = 1   # Reduce number of codegen units to increase optimizations
+panic = 'abort'     # Abort on panic
+strip = true        # Strip symbols from binary*
+``` 
+Then, all you have to do is to compile in release mode using `cargo build --release`. This info has been obtained from [this answer](https://stackoverflow.com/questions/29008127/why-are-rust-executables-so-huge) where you can also find additional tips on this topic.
+
+Take into account that you might not want to use some of those flags in your project by default(for example, `panic = 'abort'` will reduce de binary size by removing unwind data, making it impossible to recover from an unexpected exception). In my experience, the safest flags that you can use without worrying are `opt-level = 'z'` and `strip = true`; for the others, make sure you test the resulting binary before using it on a production environment or a client.
+
+## Compile to dll
+Rust projects can be compiled to different artifacts: .lib, .exe, .dll, .so, etc. By default, your code will be compiled to .exe format, but I have found very useful to be able to compile my code into a native dll, as I would do from other languages like C or C++.
+
+To do so, you have to add the following lines to `Cargo.toml`:
+```rust
+[lib]
+crate-type = ["cdylib"]
+```
+Then, you just need to rename the default `main.rs` file to `lib.rs`. After that, simply compile your code as you would normally do to get a C style dll.
+
+If you want that the final dll exports certain function of your code, you can do so by changing the function's signature like this:
+```rust
+#[no_mangle]
+pub extern fn run()
+{
+    ...      
+}
+``` 
+The final dll will export a function named `run` that can be called as usual (for example, with LoadLibrary + GetProcAddress or through DInvoke).
