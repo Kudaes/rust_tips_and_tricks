@@ -21,14 +21,12 @@ I don't consider myself an expert or guru in Rust, which means that they could b
 - [Compile](#compile)
   - [Reducing PE size](#reducing-pe-size)
   - [Compile to dll](#compile-to-dll)
-- [Issues](#issues)
-  - [Default() and transmute()](#default()-and-transmute())
+- [Issues resolution](#issues-resolution)
+  - [default() and transmute()](#default()-and-transmute())
   - [VCRuntime](#vcruntime)
   - [Nightly](#nightly)
   - [ASM](#asm)
   - [Wide char string](#wide-char-string) -> utf8 en rust
-  - [Compile to dll](#compile-to-dll)
-  - [PE size](#pe-size)
   - [Encrypt string literals](#encrypt-string-literals)
 - [Resources](#resources)
 - [Contribution](#contribution)
@@ -337,7 +335,7 @@ strip = true        # Strip symbols from binary*
 ``` 
 Then, all you have to do is to compile in release mode using `cargo build --release`. This info has been obtained from [this answer](https://stackoverflow.com/questions/29008127/why-are-rust-executables-so-huge) where you can also find additional tips on this topic.
 
-Take into account that you might not want to use some of those flags in your project by default(for example, `panic = 'abort'` will reduce de binary size by removing unwind data, making it impossible to recover from an unexpected exception). In my experience, the safest flags that you can use without worrying are `opt-level = 'z'` and `strip = true`; for the others, make sure you test the resulting binary before using it on a production environment or a client.
+Take into account that you might not want to use some of those flags in your project by default (for example, `panic = 'abort'` will reduce de binary size by removing unwind data, making it impossible to recover from an unexpected exception). In my experience, the safest flags that you can use without worrying are `opt-level = 'z'` and `strip = true`; for the others, make sure you test the resulting binary before using it on a production environment or a client.
 
 ## Compile to dll
 Rust projects can be compiled to different artifacts: .lib, .exe, .dll, .so, etc. By default, your code will be compiled to .exe format, but I have found very useful to be able to compile my code into a native dll, as I would do from other languages like C or C++.
@@ -358,3 +356,29 @@ pub extern fn run()
 }
 ``` 
 The final dll will export a function named `run` that can be called as usual (for example, with LoadLibrary + GetProcAddress or through DInvoke).
+
+# Issues resolution
+I wasn`t sure how to name this section, but here I will add both some extra tricks that do not have their own section and also troubleshooting tips.
+
+You will see that I don't really know the origin/cause of some of the issues I will comment below, but at the end the important thing is to show you how you can solve them.
+## default() and transmute()
+Let's have a look at the following code:
+```rust
+let handle = GetCurrentProcess();
+let base_address: *mut PVOID = std::mem::transmute(&usize::default());
+let zero_bits = 0 as usize;
+let size: *mut usize = std::mem::transmute(&dwsize);
+let ret = dinvoke::nt_allocate_virtual_memory(handle, base_address, zero_bits, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+```
+Here I'm just calling NtAllocateVirtualMemory to allocate a certain amount of memory. Well, this code will work 99% of the times, but the remaining 1% will fail unexpectedly leading to every sort of unexpected behavior. 
+
+Don't ask me why this happens because I don't know it, but this situation arises when you use the trait `default()` directly into the method `transmute()`. So the best way to remove that 1% chance of unexpected failure is to rewrite the previous code like this:
+```rust
+let handle = GetCurrentProcess();
+let a = usize::default(); // This is the key line
+let base_address: *mut PVOID = std::mem::transmute(&a);
+let zero_bits = 0 as usize;
+let size: *mut usize = std::mem::transmute(&dwsize);
+let ret = dinvoke::nt_allocate_virtual_memory(handle, base_address, zero_bits, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+```
+Here you can see that first I store the output from the trait `default()` in a temporal variable `a`, and then I pass that variable's reference to the method `transmute()`. This code will never experience the same erratic behavior commented before, so I recommend you to always add that extra line to your code.
