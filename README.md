@@ -27,7 +27,7 @@ I don't consider myself an expert or guru in Rust, which means that they could b
   - [VCRuntime](#vcruntime)
   - [Nightly](#nightly)
   - [ASM](#asm)
-  - [Wide char string](#wide-char-string) -> utf8 en rust
+  - [Wide char strings](#wide-char-strings)
   - [Encrypt string literals](#encrypt-string-literals)
 - [Resources](#resources)
 - [Contribution](#contribution)
@@ -457,7 +457,7 @@ fn main()
         .compile("stub");
 }
 ```
-Now, you can create a `srv::stub.asm` file and insert any desired code on it:
+Now, you can create a `src::stub.asm` file and insert any desired code on it:
 ```asm
 .code
 
@@ -488,10 +488,27 @@ extern "C"
 
 pub fn main()
 {
-  let ret = FancyFcuntion(param1, param2...);
+  let ret = FancyFunction(param1, param2...);
   if ret == true
   {
     println!("Alright!");
   }
 }
-``
+```
+
+## Wide char strings
+In rust, strings (both types `&str` and `String`) are utf8 encoded. However, in the Windows API are widely used the so called wide char strings, which are utf16 encoded (2 bytes for each char). This kind of strings can be found, for instance, in the well know `UNICODE_STRING`struct.
+
+So, to obtain a utf16 string in Rust you can do this:
+```rust
+let mut module_path_utf16: Vec<u16> = "any text".encode_utf16().collect();
+module_path_utf16.push(0);
+``` 
+Okay, I know what you are going to say: this is not a `String`, it is a `Vector`. But at the end, it's almost the same, just a memory buffer with some random content which now will be utf16 encoded. And from this, you can easily obtain a `UNICODE_STRING` which is probably what you are trying to achieve at this point:
+```rust
+let unicode = UNICODE_STRING::default();
+let object_name: *mut UNICODE_STRING = std::mem::transmute(&unicode);
+dinvoke::rtl_init_unicode_string(object_name, module_path_utf16.as_ptr());
+let unicode_object = *object_name; // Completely unnecessary
+``` 
+## Encrypt string literals
