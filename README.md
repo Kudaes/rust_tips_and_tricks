@@ -512,3 +512,42 @@ dinvoke::rtl_init_unicode_string(object_name, module_path_utf16.as_ptr());
 let unicode_object = *object_name; // Completely unnecessary
 ``` 
 ## Encrypt string literals
+Good OPSEC demands string literals to avoid giving away certain information that can be used to detect the malicious behaviour of your payload.
+
+I personally like to use the crate [litcrypt](https://github.com/anvie/litcrypt.rs) to hide the strings literals of my code, specially when I am using DInvoke_rs. I find it very easy to use and it seems very reliable, never had any issue using it.
+
+If you want to do the same, just add the dependency in `Cargo.toml`:
+```rust
+[dependencies]
+litcrypt = "0.3"
+```
+Then you just need to initialize the macro by adding this code to your project:
+```rust
+#[macro_use]
+extern crate litcrypt;
+use_litcrypt!();
+```
+From there, you can call the macro `lc!()` which will encrypt your string literals at compilation, and will unencrypt them at runtime:
+```rust
+/// Dynamically calls NtWriteVirtualMemory.
+///
+/// It will return the NTSTATUS value returned by the call.
+pub fn nt_write_virtual_memory (handle: HANDLE, base_address: PVOID, buffer: PVOID, size: usize, bytes_written: *mut usize) -> i32 {
+
+    unsafe 
+    {
+        let ret;
+        let func_ptr: data::NtWriteVirtualMemory;
+        let ntdll = get_module_base_address(&lc!("ntdll.dll"));
+        // What would be the point of using DInvoke if I publish all the WinAPI functions that I am using
+        // through the string literals on my code? :) 
+        dynamic_invoke!(ntdll,&lc!("NtWriteVirtualMemory"),func_ptr,ret,handle,base_address,buffer,size,bytes_written);
+
+        match ret {
+            Some(x) => return x,
+            None => return -1,
+        }
+    }
+
+}
+```
