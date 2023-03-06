@@ -48,9 +48,9 @@ Once we have the DInvoke_rs project, we can start calling any WinApi function th
 pub type NtWriteVirtualMemory = unsafe extern "system" fn (HANDLE, PVOID, PVOID, usize, *mut usize) -> i32;
 
 ```
-In many cases, you will also need to [define structs and data types](#structs-and-types) used as input/output parameters by the function that you are calling. The best practice is to define them in the same `data` crate.
+In many cases, you will also need to [define the required structs and data types](#structs-and-types) used as input/output parameters. The best practice is to define them in the same `data` crate.
 
-2) Create a small function in the crate `dinvoke` that dynamically obtains the base address of ntdll, and then calls the macro `dynamic_invoke!()`:
+2) Create a small function in the crate `dinvoke` that dynamically obtains the base address of ntdll (or any other loadead dll), and then calls the macro `dynamic_invoke!()`:
 ```rust
 /// Dynamically calls NtAllocateVirtualMemory.
 ///
@@ -72,7 +72,7 @@ pub fn nt_allocate_virtual_memory (handle: HANDLE, base_address: *mut PVOID, zer
 }
 ```
 
-3) Define in `src::main.rs` the required parameters and call the function:
+3) Define in `src::main.rs` the required parameters and make the call:
 ```rust
 ...
 
@@ -108,7 +108,7 @@ If you don't care about or do not need the advantages that DInvoke_rs offers, it
 ## Definition of structs
 In many situations you will need to use several structs in order to interact with WinAPI. The easiest way to use these structs is by import them directly from the official crates [windows](https://microsoft.github.io/windows-docs-rs/doc/windows/index.html) and [ntapi](https://docs.rs/ntapi/latest/ntapi/). By doing so, you won't need to define them manually.
 
-Although this is very convenient, I have noticed that not all the structs in those crates are well defined. The vast majority of cases where the struct definition was wrong is due to an incorrect number of fields which prevents to use the struct efficiently (you can't access directly to the field you are interested on...), but in some cases even the size of the struct was wrong.
+Although this is very convenient, I have noticed that not all the structs in those crates are well defined. The vast majority of cases where the struct definition is wrong is due to an incorrect number of fields which prevents to use the struct efficiently (you can't access directly to the fields you are interested on...), but in some cases even the size of the struct was wrong.
 
 Either the struct is poorly defined or it is not defined at all, you can define your own structs very easily (preferably in the crate `data`):
 
@@ -119,7 +119,7 @@ pub struct SYSTEM_HANDLE_INFORMATION {
     pub handles: Vec<SYSTEM_HANDLE_TABLE_ENTRY_INFO>,
 }
 ```
-By default, you will need to add the `#[repr(C)]` attribute to keep the fields order, otherwise Rust may change that order randomly at compilation time. 
+By default, you will need to add the `#[repr(C)]` attribute to keep the order of the fields, otherwise Rust may change that order randomly at compilation time. 
 
 On the other hand, some structs have fields that are arrays of an undetermined size and those fields are commonly defined in Rust as an array of one single element. For example:
 ```rust
@@ -188,12 +188,12 @@ let create_info: PS_CREATE_INFO = std::mem::zeroed(); // Good if you can't use t
 let unused: Vec<u8> = vec![0;size_of::<HANDLE>()];
 let handle: *mut HANDLE = std::mem::transmute(unused.as_ptr());
 ```
-Obviously, this very last option is only good when you need to directly create a pointer to the struct. In any other case, it is better to use the other two alternatives.
+Obviously, this very last option is only good when you need to create a pointer to the struct. In any other case, it is better to use the other two alternatives.
 
 ## NTSTATUS
 NTSTATUS is a struct heavily used in the NT API, and in Rust you can define it as a `i32`. There is not much mistery on this topic, just know that you can obtain the hex value of a NTSTATUS printing it like this:
 ```rust
-let ret = dinvoke::nt_allocate_virtual_memory(
+let ret: i32 = dinvoke::nt_allocate_virtual_memory(
           handle, 
           base_address, 
           zero_bits, 
@@ -207,8 +207,8 @@ println!("NTSTATUS returned by NtAllocateVirtualMemory: {:x}", ret);
 Then you can search for this hex value in the [official documentation](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-erref/596a1078-e883-4972-9bbc-49e60bebca55) and get a little bit of info about why is your code failing (WARNING: You may end up loosing your mind after receiving the tenth "Invalid Parameter" NTSTATUS in a row).
 
 ## Function signatures
-If you are using DInvoke to make WinAPI calls, you will need to define the signature for every function that you are dynamically calling. This is something similar to what is done in C#, where in order to create a Delegate you need to know the input and output parameters of the function.
-Defining a WinAPI function signature is very easy:
+If you are using DInvoke to call WinAPI, you will need to define the signature for every function that you are dynamically calling. This is something similar to what is done in C#, where in order to create a Delegate you need to define the input and output parameters of the function.
+Defining a WinAPI function's signature is very easy:
 * If this call is contained in what we know as Win32 (documented Windows API), then look for the signature in the crate [windows](https://microsoft.github.io/windows-docs-rs/doc/windows/index.html).
 * If the call belongs to the undocumented part of the WinAPI, get the signature from the crate [ntapi](https://docs.rs/ntapi/latest/ntapi/).
 * If it is not defined in any of those crates, you will need to manually create the signature. Take a look at the existing examples in DInvoke in order to success in this task.
@@ -228,11 +228,11 @@ pub unsafe extern "system" fn NtWriteVirtualMemory(
 ) -> NTSTATUS
 ``` 
 
-[Here](https://docs.rs/ntapi/latest/ntapi/ntmmapi/fn.NtWriteVirtualMemory.html) for example, the parameter BufferSize is defined as a `SIZE_T`. If you follow the link, you will see that the `SIZE_T` is defined this way:
+[Here](https://docs.rs/ntapi/latest/ntapi/ntmmapi/fn.NtWriteVirtualMemory.html) for example, the parameter BufferSize is defined as a `SIZE_T`. If you follow the link, you will see that the `SIZE_T` is defined this other way:
 ```rust
 type SIZE_T = ULONG_PTR;
 ```
-So then, you need to follow another link to obtain the real basic type behind that parameter:
+Then, you need to follow another link to obtain the real basic type behind that parameter:
 ```rust
 type ULONG_PTR = usize;
 ```
@@ -248,7 +248,7 @@ pub struct Struct {
     pub 0: i32
 }
 ```
-Here you have almost the same situation than before. If you want, you can import the struct from the corresponding crate, or you can define the struct manually in your code, but for me the simplest way of doing this is to consider that the WinAPI function expects an `i32` directly, getting rid of the struct and making it easier to implement the code. 
+Here you have almost the same situation than before. If you want, you can import the struct from the corresponding crate, or you can define the struct manually in your code, but for me the simplest way of dealing with this is to consider that the WinAPI function expects an `i32` directly, getting rid of the struct and making it easier to implement the code. 
 
 I think that the only struct like this that I keep in my projects is [HANDLE](https://microsoft.github.io/windows-docs-rs/doc/windows/Win32/Foundation/struct.HANDLE.html) (which has a single field, an isize), and I do so because it is a very commonly used struct and I feel like its presence makes the final code easier to understand for other people. 
 
@@ -261,7 +261,7 @@ When you are dealing with basic type pointers, you can cast between them using t
 let a: *mut i32 = get_i32_mut();
 let b: *mut u64 = a as *mut u64;
 ```
-However, this only works when you are dealing with basic type pointers, and most of the time you will be dealing with WinAPI structs and types pointers. In this case, you can use the function `std::mem::transmute()`:
+However, this only works when you are dealing with basic type pointers, and most of the time you will be dealing with WinAPI structs and types pointers. If that is the case, you can use the function `std::mem::transmute()`:
 ```rust
 let a: *mut ComplexStruct = get_complexstruct_pointer();
 let b: PVOID = std::mem::transmute(a);
@@ -355,7 +355,7 @@ crate-type = ["cdylib"]
 ```
 Then, you just need to rename the default `main.rs` file to `lib.rs`. After that, simply compile your code as you would normally do to get a C style dll.
 
-These two steps won't be required if at the time of creating the project with cargo, you specify the tag `--lib`, although that would make it harder to debug your code and I do not recommend it at first.
+These two steps won't be required if at the time of creating the project with cargo, you specify the tag `--lib` (you would be creating a library), although that would make it harder to debug your code and I do not recommend it at first.
 
 If you want that the final dll exports a certain function of your code, you can do so by changing the function's signature like this:
 ```rust
@@ -368,7 +368,7 @@ pub extern fn run()
 The final dll will export a function named `run` that can be called as usual (for example, with LoadLibrary + GetProcAddress or through DInvoke).
 
 ## Define target architecture
-If you want to compile to a different system architecture (for example, compile a 32 bits binary from x64 machine) you can create a `.cargo`folder in the root of your project, and place a `config` file inside of it. In this config file you can define the toolchain that you want to use:
+If you want to compile to a different system architecture (for example, compile a 32 bits binary from x64 machine) you can create a `.cargo` folder in the root of your project, and place a `config` file inside of it. In this config file you can define the toolchain that you want to use:
 ```rust
 [build]
 target = "x86_64-pc-windows-msvc" 
@@ -392,7 +392,7 @@ let zero_bits = 0 as usize;
 let size: *mut usize = std::mem::transmute(&dwsize);
 let ret = dinvoke::nt_allocate_virtual_memory(handle, base_address, zero_bits, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 ```
-Here I'm just calling NtAllocateVirtualMemory to allocate a certain amount of memory. Well, this code will work 99% of the times, but the remaining 1% will fail leading to every sort of unexpected behavior. 
+Here I'm just calling NtAllocateVirtualMemory to allocate a certain amount of memory. Well, this code will work 99% of the times, but the remaining 1% will fail "for no reason" leading to every sort of unexpected behavior. 
 
 Don't ask me why this happens because I don't really know it, but this situation arises when you pass the output of the method `default()` as a reference directly into the method `transmute()`. So the best way to remove that 1% chance of unexpected failure is to rewrite the previous code like this:
 ```rust
@@ -406,7 +406,7 @@ let ret = dinvoke::nt_allocate_virtual_memory(handle, base_address, zero_bits, s
 Here you can see that first I store the output from the trait `default()` in a temporary variable `a`, and then I pass that variable's reference to the method `transmute()` in order to get a `PVOID`. This code will never experience the same erratic behavior commented before, so I recommend you to always add that extra line to your code.
 
 ## VCRuntime
-Many times you will recieve the error message "The code execution cannot proceed because VCRUNTIME140.dll was not found" at the time of running your binaries on other machines.
+Many times you will receive the error message "The code execution cannot proceed because VCRUNTIME140.dll was not found" at the time of running your binaries on remote machines.
 
 To fix this, you need to statically link this dll. First, add the following line to `Cargo.toml`:
 ```rust
@@ -473,7 +473,7 @@ Now, you can create a `src::stub.asm` file and insert any desired code on it:
         mov rsp, rbp
         pop rbp
         ret
-    PrepareAndRop ENDP
+    FancyFunction ENDP
 
 end
 ```
@@ -497,14 +497,14 @@ pub fn main()
 ```
 
 ## Wide char strings
-In rust, strings (both types `&str` and `String`) are utf8 encoded. However, in the Windows API are widely used the so called wide char strings, which are utf16 encoded (2 bytes for each char). This kind of strings can be found, for instance, in the well know `UNICODE_STRING`struct.
+In rust, strings (both `&str` and `String`) are utf8 encoded. However, in the Windows API are widely used the so called wide char strings, which are utf16 encoded (2 bytes for each char). This kind of strings can be found, for instance, in the well know `UNICODE_STRING` struct.
 
-So, to obtain a utf16 string in Rust you can do this:
+So, you can convert any Rust string to an utf16 encoded string this way:
 ```rust
 let mut module_path_utf16: Vec<u16> = "any text".encode_utf16().collect();
 module_path_utf16.push(0);
 ``` 
-Okay, I know what you are going to say: this is not a `String`, it is a `Vector`. But at the end, it's almost the same, just a memory buffer with some random content which now will be utf16 encoded. And from this, you can easily obtain a `UNICODE_STRING` which is probably what you are trying to achieve at this point:
+Okay, I know what you are going to say: this is not a `String`, it is a `Vector`. But at the end it's almost the same, just a memory buffer with some random content which now will be utf16 encoded. And from this, you can easily obtain a `UNICODE_STRING` which is probably what you are trying to achieve at this point:
 ```rust
 let unicode = UNICODE_STRING::default();
 let object_name: *mut UNICODE_STRING = std::mem::transmute(&unicode);
@@ -553,6 +553,11 @@ pub fn nt_write_virtual_memory (handle: HANDLE, base_address: PVOID, buffer: PVO
 ```
 This is just an example, but you can use it almost everywhere you have a sensitive string literal.
 
+Just remember to set the environment variable LITCRYPT_ENCRYPT_KEY before compiling your code:
+```
+ set LITCRYPT_ENCRYPT_KEY="yoursupersecretkey"
+ ```
+
 # Resources
 * [windows](https://microsoft.github.io/windows-docs-rs/doc/windows/index.html) and [ntapi](https://docs.rs/ntapi/latest/ntapi/index.html) crates.
 * [At the end of this post](https://sebnilsson.com/blog/from-csharp-to-rust-code-basics/) you can find a primitives comparison between C# and Rust data types, very useful to carry out a port of code between the two languages.
@@ -563,3 +568,4 @@ This is just an example, but you can use it almost everywhere you have a sensiti
 * A little bit of extra info about [nightly channel](https://web.mit.edu/rust-lang_v1.25/arch/amd64_ubuntu1404/share/doc/rust/html/book/second-edition/ch01-03-how-rust-is-made-and-nightly-rust.html).
 
 # Contribution
+I will try to keep this repo updated and add other valuable tips and tricks in the near future. Feel free to make a pull request if you think you have some interesting tips to share with the community, but keep in mind that your contribution should be Windows related and that this repo is more like a cheatsheet and not a Rust tutorial.  
