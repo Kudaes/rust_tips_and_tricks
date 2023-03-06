@@ -512,8 +512,7 @@ dinvoke::rtl_init_unicode_string(object_name, module_path_utf16.as_ptr());
 let unicode_object = *object_name; // Completely unnecessary
 ``` 
 ## Encrypt string literals
-Good OPSEC demands string literals to avoid giving away certain information that can be used to detect the malicious behaviour of your payload.
-
+Good OPSEC demands string literals encryption to avoid giving away certain information that can be used to detect the malicious behaviour of your payload.
 I personally like to use the crate [litcrypt](https://github.com/anvie/litcrypt.rs) to hide the strings literals of my code, specially when I am using DInvoke_rs. I find it very easy to use and it seems very reliable, never had any issue using it.
 
 If you want to do the same, just add the dependency in `Cargo.toml`:
