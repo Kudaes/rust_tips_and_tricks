@@ -6,7 +6,7 @@ Also, below I add a snippet of how to start a new project of these characteristi
 
 I don't consider myself an expert or guru in Rust, which means that they could be better ways of doing things as I show them here. However, I've found very useful to know all these techniques and I hope they save you all the time that I had to invest in order to make my code work.
 
-## Tips, Tricks and Issues resolution
+## Content
 
 - [Getting started with DInvoke_rs](#DInvoke_rs)
 - [Structs and Types](#structs-and-types)
@@ -21,6 +21,7 @@ I don't consider myself an expert or guru in Rust, which means that they could b
 - [Compile](#compile)
   - [Reducing PE size](#reducing-pe-size)
   - [Compile to dll](#compile-to-dll)
+  - [Define target architecture](#define-target-architecture)
 - [Issues resolution](#issues-resolution)
   - [default() and transmute()](#default()-and-transmute())
   - [VCRuntime](#vcruntime)
@@ -42,7 +43,7 @@ In case that you only need the DInvoke functionality, I have created a [minimali
 
 Once we have the DInvoke_rs project, we can start calling any WinApi function that we need. For that, it is required to follow these simple steps (the steps below show how to call **ntdll!NtAllocateVirtualMemory**):
 
-1) Define the function signature in the crate `data` (check the [Structs and Types](#structs-and-types) section to know how to easily obtain these function signatures):
+1) Define the function signature in the crate `data` (check the [Structs and Types](#function-signatures) section to know how to easily obtain these function signatures):
 ```rust
 pub type NtWriteVirtualMemory = unsafe extern "system" fn (HANDLE, PVOID, PVOID, usize, *mut usize) -> i32;
 
@@ -175,7 +176,7 @@ impl Default for PeMetadata {
 ```
 
 ## Instantiation of structs
-The best way of intantiating a struct in case that you need to modify ther value of any of its fields before sending it as an input for some WinAPI call is to use the trait `Default`:
+The best way of intantiating a struct is to use the method `default()` in case that the trait is defined:
 ```rust
 let handle: HANDLE = HANDLE::default();
 ```
@@ -216,7 +217,7 @@ Once you know which parameters are expected and returned, go to the `data` crate
 ```rust
 pub type NewWinApiFunction = unsafe extern "system" fn (HANDLE, *mut PVOID, usize, *mut usize, u32, u32) -> i32; 
 ```
-Very often you will see that some parameters are not directly defined:
+Very often you will see that the type of some parameters is not directly defined:
 ```rust
 pub unsafe extern "system" fn NtWriteVirtualMemory(
     ProcessHandle: HANDLE,
@@ -235,9 +236,9 @@ So then, you need to follow another link to obtain the real basic type behind th
 ```rust
 type ULONG_PTR = usize;
 ```
-Here you have several options in order to add the signature for `NtWriteVirtualMemory` (or any other function):
-1) You can import the data types required directly from the official crates, but you will add that dependencies to your project.
-2) You can manually define the `SIZE_T` data type. Very tedious if you have a huge amount of new data types.
+Here you have several options in order to deal with this situation:
+1) You can import the types required directly from the official crates, but you will add that dependencies to your project.
+2) You can manually define the `SIZE_T` data type. Very tedious if you have a huge amount of new types.
 3) **Or you can do what I usually do**. You can define the parameter BufferSize as a `usize` which is the underlaying basic type, and everything will work perfectly.
 
 The same way, sometimes you will find that some parameters are defined as structs of one single field. For example, you could have certain WinAPI function that expects as an input parameter a struct defined this way:
@@ -298,11 +299,16 @@ fn main()
     }
 }
 ```
-To obtain the memory address of a varible that is not of a basic data type, you need to use once again the method `transmute`:
+To obtain the memory address of a varible that is not of a basic data type, you need to use once again the method `transmute` to cast it into a `usize`:
 ```rust
 let handle: HANDLE = HANDLE::default();
 let handle_addr: usize = std::mem::transmute(&handle);
 println!("The memory address where the variable handle is located is 0x{:x}", handle_addr);
+```
+The last code can be simplified in case that you only want to print the memory address:
+```rust
+let handle: HANDLE = HANDLE::default();
+println!("The memory address where the variable handle is located is 0x{:p}", &handle);
 ```
 ## Arithmetic operations
 There are several ways to increment/decrement a pointer in Rust, and this is required in many situations that involve the WinAPI. To me, the best way to increment or decrement a pointer is by using the functions `add()` and `sub()`. These functions expect one single input parameter, which is the offset to calculate from the starting pointer. 
@@ -351,7 +357,7 @@ Then, you just need to rename the default `main.rs` file to `lib.rs`. After that
 
 These two steps won't be required if at the time of creating the project with cargo, you specify the tag `--lib`, although that would make it harder to debug your code and I do not recommend it at first.
 
-If you want that the final dll exports certain function of your code, you can do so by changing the function's signature like this:
+If you want that the final dll exports a certain function of your code, you can do so by changing the function's signature like this:
 ```rust
 #[no_mangle]
 pub extern fn run()
@@ -360,6 +366,18 @@ pub extern fn run()
 }
 ``` 
 The final dll will export a function named `run` that can be called as usual (for example, with LoadLibrary + GetProcAddress or through DInvoke).
+
+## Define target architecture
+If you want to compile to a different system architecture (for example, compile a 32 bits binary from x64 machine) you can create a `.cargo`folder in the root of your project, and place a `config` file inside of it. In this config file you can define the toolchain that you want to use:
+```rust
+[build]
+target = "x86_64-pc-windows-msvc" 
+```
+By default, the two toolchains (from the stable channel) that I normally use are:
+* `x86_64-pc-windows-msvc` to target a x64 architecture.
+* `i686-pc-windows-msvc` to create a 32 bits binary.
+
+You can list the toolchains installed on your system with the command `rustup toolchain list`. You can install any toolchain with `rustup install <toolchain>`.
 
 # Issues resolution
 I wasn't sure how to name this section, but here I will add both some extra tricks that do not have their own section and also troubleshooting tips.
@@ -374,7 +392,7 @@ let zero_bits = 0 as usize;
 let size: *mut usize = std::mem::transmute(&dwsize);
 let ret = dinvoke::nt_allocate_virtual_memory(handle, base_address, zero_bits, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 ```
-Here I'm just calling NtAllocateVirtualMemory to allocate a certain amount of memory. Well, this code will work 99% of the times, but the remaining 1% will fail unexpectedly leading to every sort of unexpected behavior. 
+Here I'm just calling NtAllocateVirtualMemory to allocate a certain amount of memory. Well, this code will work 99% of the times, but the remaining 1% will fail leading to every sort of unexpected behavior. 
 
 Don't ask me why this happens because I don't really know it, but this situation arises when you pass the output of the method `default()` as a reference directly into the method `transmute()`. So the best way to remove that 1% chance of unexpected failure is to rewrite the previous code like this:
 ```rust
@@ -386,3 +404,94 @@ let size: *mut usize = std::mem::transmute(&dwsize);
 let ret = dinvoke::nt_allocate_virtual_memory(handle, base_address, zero_bits, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 ```
 Here you can see that first I store the output from the trait `default()` in a temporary variable `a`, and then I pass that variable's reference to the method `transmute()` in order to get a `PVOID`. This code will never experience the same erratic behavior commented before, so I recommend you to always add that extra line to your code.
+
+## VCRuntime
+Many times you will recieve the error message "The code execution cannot proceed because VCRUNTIME140.dll was not found" at the time of running your binaries on other machines.
+
+To fix this, you need to statically link this dll. First, add the following line to `Cargo.toml`:
+```rust
+[build-dependencies]
+static_vcruntime = "2.0"
+```
+Then, add a file named `build.rs` in the root of your project with this content:
+```rust
+ fn main() {
+    static_vcruntime::metabuild();
+}
+```
+Then recompile and the issue will be gone.
+
+Another way of doing this same thing is to create a `.cargo` folder in the root of the project, and place a `Cargo.toml` file inside of it with the following content:
+```rust
+[target.'cfg(all(windows, target_env = "msvc"))']
+rustflags = ["-C", "target-feature=+crt-static"]
+```
+
+## Nightly
+Some experimental features are only available using the nightly channel. For example, in [Unwinder](https://github.com/Kudaes/Unwinder) I used the intrinsic `llvm.addressofreturnaddress` in order to get the memory address where the next return address was located in the stack. This intrinsic was only available in the nightly channel, but it was pretty useful and made my life way easier.
+
+If you want to use some cool feature only available in nightly, you just need to install the corresponding toolchain:
+```
+rustup install nightly
+```
+Once you have the toolchain installed, you can set it up for a specific project (you could also set it up globally, but I do not recommend it):
+```
+cd ~/yourproject/
+rustup override add nightly
+```
+This way, you will be able to use any nightly feature on that specific project. 
+
+## ASM
+Rust allows to insert assembly code in your projects as well. To do so, I use the crate `cc-rs`. To use this crate, first add the dependency in `Cargo.toml`:
+```rust
+[build-dependencies]
+cc = "*"
+```
+Next, you have to create a `build.rs` file in the root of the project where you will indicate the .asm files that you want to compile together with the Rust code:
+```rust
+fn main()
+{
+    // Use the `cc` crate to build a C file and statically link it.
+    cc::Build::new()
+        .file("src/stub.asm")
+        .compile("stub");
+}
+```
+Now, you can create a `srv::stub.asm` file and insert any desired code on it:
+```asm
+.code
+
+     FancyFunction PROC FRAME
+        push rbp
+        .pushreg rbp
+        mov rbp, rsp
+        .setframe rbp, 0 
+        .endprolog
+
+        ...
+
+        mov rsp, rbp
+        pop rbp
+        ret
+    PrepareAndRop ENDP
+
+end
+```
+Finally, you can call from Rust any of the functions defined in the .asm file by adding the corresponding `extern` signatures:
+```rust
+extern "C"
+{
+    fn FancyFunction(address: *const c_void, size: usize, protection: u32, old: *mut u32, virtual_protect: *mut c_void) -> bool;
+}
+
+...
+
+pub fn main()
+{
+  let ret = FancyFcuntion(param1, param2...);
+  if ret == true
+  {
+    println!("Alright!");
+  }
+}
+``
