@@ -50,7 +50,7 @@ pub type NtWriteVirtualMemory = unsafe extern "system" fn (HANDLE, PVOID, PVOID,
 ```
 In many cases, you will also need to [define the required structs and data types](#structs-and-types) used as input/output parameters. The best practice is to define them in the same `data` crate.
 
-2) Create a small function in the crate `dinvoke` that dynamically obtains the base address of ntdll (or any other loadead dll), and then calls the macro `dynamic_invoke!()`:
+2) Create a small function in the crate `dinvoke` that dynamically obtains the base address of ntdll (or any other loaded dll), and then calls the macro `dynamic_invoke!()`:
 ```rust
 /// Dynamically calls NtAllocateVirtualMemory.
 ///
