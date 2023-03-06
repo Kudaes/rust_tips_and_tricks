@@ -4,7 +4,7 @@ This repo is just a collection of Rust tips and tricks **useful to interact with
 **This is not a tutorial, the content in this repo won't teach you how to code in Rust.** The only goal of this repo is to share the knowledge that I have obtained during the last years implementing offensive tools in Rust, hoping that this tips and tricks help you to solve some of the annoying issues that I have found at the time of interacting with Windows API from this language. 
 Also, below I add a snippet of how to start a new project of these characteristics using Dinvoke_rs, hoping that this will solve any pending doubts and will allow anyone to start using the project.
 
-I don't consider myself an expert or guru in Rust, which means that they could be better ways of doing things as I show them here. However, I've found very useful to know all these techniques and I hope they save you all the time that I had to invest in order to make my code work.
+I don't consider myself an expert or guru in Rust, which means that they could be better ways of doing things as I show them here. However, I've found very useful to know all these techniques and I hope that they save you all the time that I had to invest in order to make my code work.
 
 ## Content
 
@@ -35,11 +35,11 @@ I don't consider myself an expert or guru in Rust, which means that they could b
 # DInvoke_rs
 To me, the most straighforward way to create a new tool in Rust that requires the interaction with the Windows API is to download the [Dinvoke_rs](https://github.com/Kudaes/DInvoke_rs/tree/main/dinvoke_rs) project and use it as a template, adding my code on top of it. Dinvoke_rs offers three main functionalities:
 
-* **DInvoke**: It allows to dynamically find and execute unmanaged code. This is perfect since it allows us to call any function of WinAPI withtout leaving any trace in the final PE IAT, increasing our OPSEC.
+* **DInvoke**: It allows to dynamically find and execute unmanaged code. This is perfect since it allows us to call any function of WinAPI without leaving any trace in the final PE IAT, increasing our OPSEC.
 * **Manualmap**: Manually maps any PE as LoadLibrary (or the operative system) would do, both from disk and memory.
 * **Overload**: It manually maps a PE in a file-backed memory section of the current process.
 
-In case that you only need the DInvoke functionality, I have created a [minimalist branch]() on the repository that contains the minimum code required in order to use that crate. In case that you want to use the rest of the functionalities described before, just download the code from the main branch.
+In case that you only need the DInvoke functionality, I have created a [minimalist branch](https://github.com/Kudaes/DInvoke_rs/tree/minimalist) on the repository that contains the minimum code required in order to use that crate. In case that you want to use the rest of the functionalities described before, just download the code from the main branch.
 
 Once we have the DInvoke_rs project, we can start calling any WinApi function that we need. For that, it is required to follow these simple steps (the steps below show how to call **ntdll!NtAllocateVirtualMemory**):
 
@@ -513,6 +513,7 @@ let unicode_object = *object_name; // Completely unnecessary
 ``` 
 ## Encrypt string literals
 Good OPSEC demands string literals encryption to avoid giving away certain information that can be used to detect the malicious behaviour of your payload.
+
 I personally like to use the crate [litcrypt](https://github.com/anvie/litcrypt.rs) to hide the strings literals of my code, specially when I am using DInvoke_rs. I find it very easy to use and it seems very reliable, never had any issue using it.
 
 If you want to do the same, just add the dependency in `Cargo.toml`:
@@ -526,7 +527,7 @@ Then you just need to initialize the macro by adding this code to your project:
 extern crate litcrypt;
 use_litcrypt!();
 ```
-From there, you can call the macro `lc!()` which will encrypt your string literals at compilation, and will unencrypt them at runtime:
+From there, you can call the macro `lc!()` which will encrypt your string literals at compilation time and will unencrypt them at runtime:
 ```rust
 /// Dynamically calls NtWriteVirtualMemory.
 ///
@@ -550,3 +551,15 @@ pub fn nt_write_virtual_memory (handle: HANDLE, base_address: PVOID, buffer: PVO
 
 }
 ```
+This is just an example, but you can use it almost everywhere you have a sensitive string literal.
+
+# Resources
+* [windows](https://microsoft.github.io/windows-docs-rs/doc/windows/index.html) and [ntapi](https://docs.rs/ntapi/latest/ntapi/index.html) crates.
+* [At the end of this post](https://sebnilsson.com/blog/from-csharp-to-rust-code-basics/) you can find a primitives comparison between C# and Rust data types, very useful to carry out a port of code between the two languages.
+* Rust also has [macros](https://doc.rust-lang.org/1.30.0/book/first-edition/macros.html) that are a very powerful feature for offensive tools development.
+* Check out [this post](https://kerkour.com/rust-position-independent-shellcode) if you want to reate PIC shellcode.
+* Again, [a very interesting discussion](https://stackoverflow.com/questions/29008127/why-are-rust-executables-so-huge) about Rust executable's size and how to minimize them.
+* [More](https://github.com/johnthagen/min-sized-rust) about minimizing Rust binaries.
+* A little bit of extra info about [nightly channel](https://web.mit.edu/rust-lang_v1.25/arch/amd64_ubuntu1404/share/doc/rust/html/book/second-edition/ch01-03-how-rust-is-made-and-nightly-rust.html).
+
+# Contribution
