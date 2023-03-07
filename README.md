@@ -180,7 +180,7 @@ The best way of intantiating a struct is to use the method `default()` in case t
 ```rust
 let handle: HANDLE = HANDLE::default();
 ```
-Another two ways of instantiating a struct, specially if you are gonna use it only as an ouput parameter (and therefore you just need to reserve the corresponding memory) are these two:
+Another two ways of instantiating a struct, specially if you are going to use it only as an ouput parameter (and therefore you just need to reserve the corresponding memory) are these two:
 ```rust
 let create_info: PS_CREATE_INFO = std::mem::zeroed(); // Good if you can't use the method default
 ```
@@ -217,7 +217,7 @@ Once you know which parameters are expected and returned, go to the `data` crate
 ```rust
 pub type NewWinApiFunction = unsafe extern "system" fn (HANDLE, *mut PVOID, usize, *mut usize, u32, u32) -> i32; 
 ```
-Very often you will see that the type of some parameters is not directly defined:
+Very often you will see that the type of some parameters are not directly defined:
 ```rust
 pub unsafe extern "system" fn NtWriteVirtualMemory(
     ProcessHandle: HANDLE,
@@ -254,7 +254,7 @@ I think that the only struct like this that I keep in my projects is [HANDLE](ht
 
 # Pointers
 ## Casting
-Usually you will need to cast between different types of pointers when working with the WinAPI. The most common case is when you have a struct pointer and you have to cast it to a PVOID pointer (which in Rust is defined as `*mut c_void`) before passing it to any WinAPI call.
+Usually you will need to cast between different types of pointers when working with the WinAPI. The most common case is when you have a struct pointer and you have to cast it to a PVOID (which in Rust is defined as `*mut c_void`) before passing it to any WinAPI call.
 
 When you are dealing with basic type pointers, you can cast between them using the keyword `as`: 
 ```rust
@@ -266,7 +266,7 @@ However, this only works when you are dealing with basic type pointers, and most
 let a: *mut ComplexStruct = get_complexstruct_pointer();
 let b: PVOID = std::mem::transmute(a);
 ```
-You can also use the method `transmute()` to get a pointer to a struct or any other data type using the special character `&`:
+You can also use that function to get a pointer to a struct or any other data type using the special character `&`:
 ```rust
 let a: i32 = 238i32;
 let b: PVOID = std::mem::transmute(&a);
@@ -377,7 +377,7 @@ By default, the two toolchains (from the stable channel) that I normally use are
 * `x86_64-pc-windows-msvc` to target a x64 architecture.
 * `i686-pc-windows-msvc` to create a 32 bits binary.
 
-You can list the toolchains installed on your system with the command `rustup toolchain list`. You can install any toolchain with `rustup install <toolchain>`.
+You can list the toolchains installed on your system with the command `rustup toolchain list`. You can install any additional toolchain with `rustup install <toolchain>`.
 
 # Issues resolution
 I wasn't sure how to name this section, but here I will add both some extra tricks that do not have their own section and also troubleshooting tips.
@@ -408,7 +408,7 @@ Here you can see that first I store the output from the trait `default()` in a t
 ## VCRuntime
 Many times you will receive the error message "The code execution cannot proceed because VCRUNTIME140.dll was not found" at the time of running your binaries on remote machines.
 
-To fix this, you need to statically link this dll. First, add the following line to `Cargo.toml`:
+To fix this, you need to statically link that dll. First, add the following line to `Cargo.toml`:
 ```rust
 [build-dependencies]
 static_vcruntime = "2.0"
@@ -521,7 +521,7 @@ If you want to do the same, just add the dependency in `Cargo.toml`:
 [dependencies]
 litcrypt = "0.3"
 ```
-Then you just need to initialize the macro by adding this code to your project:
+Then you just need to initialize the macro by adding this code in your crate:
 ```rust
 #[macro_use]
 extern crate litcrypt;
