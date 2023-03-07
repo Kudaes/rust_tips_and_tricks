@@ -1,5 +1,5 @@
 # rust_tips_and_tricks
-This repo is just a collection of Rust tips and tricks **useful to interact with the Windows API** and develop offensive security tools for this operative system.
+This repo is just a collection of Rust tips and tricks **useful to interact with the Windows API** and develop offensive security tools for that specific operative system.
 
 **This is not a tutorial, the content in this repo won't teach you how to code in Rust.** The only goal of this repo is to share the knowledge that I have obtained during the last years implementing offensive tools in Rust, hoping that this tips and tricks help you to solve some of the annoying issues that I have found at the time of interacting with Windows API from this language. 
 Also, below I add a snippet of how to start a new project of these characteristics using Dinvoke_rs, hoping that this will solve any pending doubts and will allow anyone to start using the project.
