@@ -275,7 +275,7 @@ let b: *mut HANDLE = a as *mut HANDLE;
 let a: *mut ComplexStruct = get_complexstruct_pointer();
 let b: *mut HANDLE = a as *mut _;
 ```
-You can also use that function to get a pointer to a struct or any other data type using the special character `&`:
+You can also use `transmute()` to get a pointer to a struct or any other data type using the special character `&`:
 ```rust
 let a: i32 = 238i32;
 let b: PVOID = std::mem::transmute(&a);
