@@ -261,10 +261,19 @@ When you are dealing with basic type pointers, you can cast between them using t
 let a: *mut i32 = get_i32_mut();
 let b: *mut u64 = a as *mut u64;
 ```
-However, this only works when you are dealing with basic type pointers, and most of the time you will be dealing with WinAPI structs and types pointers. If that is the case, you can use the function `std::mem::transmute()`:
+However, most of the time you will be dealing with WinAPI structs and types pointers. In that case, you can use the function `std::mem::transmute()` or use once again the keyword `as`:
 ```rust
+// Example 1
 let a: *mut ComplexStruct = get_complexstruct_pointer();
-let b: PVOID = std::mem::transmute(a);
+let b: *mut HANDLE = std::mem::transmute(a);
+
+// Example 2
+let a: *mut ComplexStruct = get_complexstruct_pointer();
+let b: *mut HANDLE = a as *mut HANDLE;
+
+// Example 3
+let a: *mut ComplexStruct = get_complexstruct_pointer();
+let b: *mut HANDLE = a as *mut _;
 ```
 You can also use that function to get a pointer to a struct or any other data type using the special character `&`:
 ```rust
