@@ -23,7 +23,7 @@ I don't consider myself an expert or guru in Rust, which means that they could b
   - [Compile to dll](#compile-to-dll)
   - [Define target architecture](#define-target-architecture)
 - [Issues resolution](#issues-resolution)
-  - [default() and transmute()](#default()-and-transmute())
+  - [transmute()](#transmute)
   - [VCRuntime](#vcruntime)
   - [Nightly](#nightly)
   - [ASM](#asm)
@@ -392,7 +392,7 @@ You can list the toolchains installed on your system with the command `rustup to
 I wasn't sure how to name this section, but here I will add both some extra tricks that do not have their own section and also troubleshooting tips.
 
 You will see that I don't really know the origin/cause of some of the issues I will comment below, but at the end the important thing is to show you how you can solve them.
-## default() and transmute()
+## transmute
 Let's have a look at the following code:
 ```rust
 let handle = GetCurrentProcess();
