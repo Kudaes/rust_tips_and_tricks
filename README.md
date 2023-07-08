@@ -29,6 +29,7 @@ I don't consider myself an expert or guru in Rust, which means that they could b
   - [ASM](#asm)
   - [Wide char strings](#wide-char-strings)
   - [Encrypt string literals](#encrypt-string-literals)
+  - [Remove absolute paths](#remove-absolute-paths)
 - [Resources](#resources)
 - [Contribution](#contribution)
 
@@ -566,6 +567,19 @@ Just remember to set the environment variable LITCRYPT_ENCRYPT_KEY before compil
 ```
  set LITCRYPT_ENCRYPT_KEY="yoursupersecretkey"
  ```
+## Remove absolute paths
+Most of the times, rust binaries will contain undesired absolute paths on them as a result of the compilation process. These strings could potentially leak the OS username that was used to compile the project, which may impact on your operation's OPSEC.
+The best way to remove these absolute paths is by using the compilation flag `--remap-path-prefix`. You can pass this flag directly to rustc or, as I prefer, add it to the `.cargo\config` file of your project and compile as usual using `cargo build --release`. 
+```rust
+[build]
+rustflags = ["--remap-path-prefix", "C:\\Users\\YourUser="] # This will remove any occurrence of C:\Users\YourUser in the resulting binary.
+```
+The only absolute path not affected by this flag is the .pdb path. To remove this whole string, remember to add the following line to your `cargo.toml` file:
+```rust
+[profile.release]
+strip = true 
+...
+```
 
 # Resources
 * [windows](https://microsoft.github.io/windows-docs-rs/doc/windows/index.html) and [ntapi](https://docs.rs/ntapi/latest/ntapi/index.html) crates.
