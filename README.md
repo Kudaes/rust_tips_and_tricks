@@ -524,17 +524,17 @@ let unicode_object = *object_name; // Completely unnecessary
 ## Encrypt string literals
 Good OPSEC demands string literals encryption to avoid giving away certain information that can be used to detect the malicious behaviour of your payload.
 
-I personally like to use the crate [litcrypt](https://github.com/anvie/litcrypt.rs) to hide the strings literals of my code, specially when I am using DInvoke_rs. I find it very easy to use and it seems very reliable, never had any issue using it.
+I personally like to use the crate [litcrypt2](https://github.com/Kudaes/litcrypt.rs) to hide the strings literals of my code, specially when I am using DInvoke_rs. I find it very easy to use and it seems very reliable, never had any issue using it.
 
 If you want to do the same, just add the dependency in `Cargo.toml`:
 ```rust
 [dependencies]
-litcrypt = "0.3"
+litcrypt2 = "0.1.0"
 ```
 Then you just need to initialize the macro by adding this code in your crate:
 ```rust
 #[macro_use]
-extern crate litcrypt;
+extern crate litcrypt2;
 use_litcrypt!();
 ```
 From there, you can call the macro `lc!()` which will encrypt your string literals at compilation time and will unencrypt them at runtime:
@@ -563,7 +563,7 @@ pub fn nt_write_virtual_memory (handle: HANDLE, base_address: PVOID, buffer: PVO
 ```
 This is just an example, but you can use it almost everywhere you have a sensitive string literal.
 
-Just remember to set the environment variable LITCRYPT_ENCRYPT_KEY before compiling your code:
+By default, `litcrypt2` will randomly generate an encryption key during compilation. In case that you want to use a specific value as your encryption key, remember to set the environment variable LITCRYPT_ENCRYPT_KEY before compiling your code:
 ```
  set LITCRYPT_ENCRYPT_KEY="yoursupersecretkey"
  ```
