@@ -37,7 +37,7 @@ I don't consider myself an expert or guru in Rust, which means that they could b
 To me, the most straighforward way to create a new offensive security tool in Rust that requires the interaction with the Windows API is to import the [Dinvoke_rs](https://github.com/Kudaes/DInvoke_rs/tree/main/dinvoke_rs) crate adding the following line to `cargo.toml`:
 
 ```rust
- [dependencies]
+[dependencies]
 dinvoke_rs = "*"
 ```
 
