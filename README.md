@@ -34,24 +34,29 @@ I don't consider myself an expert or guru in Rust, which means that they could b
 - [Contribution](#contribution)
 
 # DInvoke_rs
-To me, the most straighforward way to create a new tool in Rust that requires the interaction with the Windows API is to download the [Dinvoke_rs](https://github.com/Kudaes/DInvoke_rs/tree/main/dinvoke_rs) project and use it as a template, adding my code on top of it. Dinvoke_rs offers three main functionalities:
+To me, the most straighforward way to create a new offensive security tool in Rust that requires the interaction with the Windows API is to import the [Dinvoke_rs](https://github.com/Kudaes/DInvoke_rs/tree/main/dinvoke_rs) crate adding the following line to `cargo.toml`:
+
+```rust
+ [dependencies]
+dinvoke_rs = "*"
+```
+
+Dinvoke_rs offers three main functionalities:
 
 * **DInvoke**: It allows to dynamically find and execute unmanaged code. This is perfect since it allows us to call any function of WinAPI without leaving any trace in the final PE IAT, increasing our OPSEC.
 * **Manualmap**: Manually maps any PE as LoadLibrary (or the operative system) would do, both from disk and memory.
-* **Overload**: It manually maps a PE in a file-backed memory section of the current process.
+* **Overload**: It manually maps a PE in a file-backed memory section of the current process. This crate allows to perform both module and template stomping techniques.
 
-In case that you only need the DInvoke functionality, I have created a [minimalist branch](https://github.com/Kudaes/DInvoke_rs/tree/minimalist) on the repository that contains the minimum code required in order to use that crate. In case that you want to use the rest of the functionalities described before, just download the code from the main branch.
+Once we have imported the DInvoke_rs crate, we can start calling any WinApi function that we need. For that, it is required to follow these simple steps (the steps below show how to call **ntdll!NtAllocateVirtualMemory**):
 
-Once we have the DInvoke_rs project, we can start calling any WinApi function that we need. For that, it is required to follow these simple steps (the steps below show how to call **ntdll!NtAllocateVirtualMemory**):
-
-1) Define the function signature in the crate `data` (check the [Structs and Types](#function-signatures) section to know how to easily obtain these function signatures):
+1) Define the function's prototype (check the [Structs and Types](#function-signatures) section to know how to easily obtain these function signatures):
 ```rust
 pub type NtWriteVirtualMemory = unsafe extern "system" fn (HANDLE, PVOID, PVOID, usize, *mut usize) -> i32;
 
 ```
-In many cases, you will also need to [define the required structs and data types](#structs-and-types) used as input/output parameters. The best practice is to define them in the same `data` crate.
+In many cases, you will also need to [define the required structs and data types](#structs-and-types) used as input/output parameters.
 
-2) Create a small function in the crate `dinvoke` that dynamically obtains the base address of ntdll (or any other loaded dll), and then calls the macro `dynamic_invoke!()`:
+2) Create a small wrapper that dynamically obtains the base address of `ntdll` and then calls the macro `dynamic_invoke!()`:
 ```rust
 /// Dynamically calls NtAllocateVirtualMemory.
 ///
@@ -60,10 +65,10 @@ pub fn nt_allocate_virtual_memory (handle: HANDLE, base_address: *mut PVOID, zer
 
     unsafe 
     {
-        let ret;
-        let func_ptr: data::NtAllocateVirtualMemory;
-        let ntdll = get_module_base_address(&lc!("ntdll.dll"));
-        dynamic_invoke!(ntdll,&lc!("NtAllocateVirtualMemory"),func_ptr,ret,handle,base_address,zero_bits,size,allocation_type,protection);
+        let ret: Option<i32>;
+        let func_ptr: dinvoke_rs::data::NtAllocateVirtualMemory;
+        let ntdll = dinvoke_rs::dinvoke::get_module_base_address("ntdll.dll");
+        dinvoke_rs::dinvoke::dynamic_invoke!(ntdll,"NtAllocateVirtualMemory",func_ptr,ret,handle,base_address,zero_bits,size,allocation_type,protection);
 
         match ret {
             Some(x) => return x,
@@ -73,7 +78,7 @@ pub fn nt_allocate_virtual_memory (handle: HANDLE, base_address: *mut PVOID, zer
 }
 ```
 
-3) Define in `src::main.rs` the required parameters and make the call:
+3) Define the required parameters and make the call:
 ```rust
 ...
 
@@ -83,7 +88,7 @@ let zero_bits = 0 as usize;
 let dwsize = 354 as usize; // Allocate as much memory as you need
 let size: *mut usize = std::mem::transmute(&dwsize);
 let handle = HANDLE {0 : -1}; // Current process
-let ret = dinvoke::nt_allocate_virtual_memory(
+let ret = nt_allocate_virtual_memory(
           handle, 
           base_address, 
           zero_bits, 
@@ -91,27 +96,25 @@ let ret = dinvoke::nt_allocate_virtual_memory(
           MEM_COMMIT | MEM_RESERVE, 
           PAGE_READWRITE);
 
-if ret == 0
-{
+if ret == 0 {
     println!("Success!");
 }
-else
-{
+else {
     println!("rip");
 }
 ``` 
 
-You just need to repeat these steps for any other WinAPI call that you want to use.
+You just need to repeat these steps for any other WinAPI call that you need to call. A considerable amount of wrappers are already defined in `DInvoke_rs::dinvoke` (and I keep adding new ones with each update), so before trying to define them in your code check if they exist already.
 
 If you don't care about or do not need the advantages that DInvoke_rs offers, it may be better for you to directly import the crates [windows](https://microsoft.github.io/windows-docs-rs/doc/windows/index.html) and/or [ntapi](https://docs.rs/ntapi/latest/ntapi/) instead of loosing your time defining types, structs and function signatures. These crates will act like some sort of "PInvoke" for both Win32 (windows) and NT API (ntapi), allowing you to directly call any WinAPI function at the expense of losing a little bit of stealth and OPSEC.
 
 # Structs and Types
 ## Definition of structs
-In many situations you will need to use several structs in order to interact with WinAPI. The easiest way to use these structs is by import them directly from the official crates [windows](https://microsoft.github.io/windows-docs-rs/doc/windows/index.html) and [ntapi](https://docs.rs/ntapi/latest/ntapi/). By doing so, you won't need to define them manually.
+In many situations you will need to use several structs in order to interact with the WinAPI. The easiest way to use these structs is by import them directly from the official crates [windows](https://microsoft.github.io/windows-docs-rs/doc/windows/index.html) and [ntapi](https://docs.rs/ntapi/latest/ntapi/). By doing so, you won't need to define them manually.
 
 Although this is very convenient, I have noticed that not all the structs in those crates are well defined. The vast majority of cases where the struct definition is wrong is due to an incorrect number of fields which prevents to use the struct efficiently (you can't access directly to the fields you are interested on...), but in some cases even the size of the struct was wrong.
 
-Either the struct is poorly defined or it is not defined at all, you can define your own structs very easily (preferably in the crate `data`):
+Either the struct is poorly defined or it is not defined at all, you can define your own structs very easily:
 
 ```rust
 #[repr(C)]
@@ -130,7 +133,7 @@ pub struct SYSTEM_HANDLE_INFORMATION {
     pub Handles: [SYSTEM_HANDLE_TABLE_ENTRY_INFO; 1],
 }
 ```
-In this situation, I have noticed that is way better to manually define the struct in your code instead of directly import it as it is from the official crates, which will allow you to replace the one element array with a dynamic size vector:
+In this situation, I have noticed that is way better to manually define the struct in your code instead of directly import it as it is from the official crates, which will allow you to replace the one element array with a dynamic size `vector`:
 ```rust
 #[repr(C)]
 pub struct SYSTEM_HANDLE_INFORMATION {
@@ -189,7 +192,7 @@ let create_info: PS_CREATE_INFO = std::mem::zeroed(); // Good if you can't use t
 let unused: Vec<u8> = vec![0;size_of::<HANDLE>()];
 let handle: *mut HANDLE = std::mem::transmute(unused.as_ptr());
 ```
-Obviously, this very last option is only good when you need to create a pointer to the struct. In any other case, it is better to use the other two alternatives.
+Obviously, this very last option is only appropiate when you need to create a pointer to the struct. In any other case, it is better to use the other two alternatives.
 
 ## NTSTATUS
 NTSTATUS is a struct heavily used in the NT API, and in Rust you can define it as a `i32`. There is not much mistery on this topic, just know that you can obtain the hex value of a NTSTATUS printing it like this:
@@ -209,12 +212,12 @@ Then you can search for this hex value in the [official documentation](https://l
 
 ## Function signatures
 If you are using DInvoke to call WinAPI, you will need to define the signature for every function that you are dynamically calling. This is something similar to what is done in C#, where in order to create a Delegate you need to define the input and output parameters of the function.
-Defining a WinAPI function's signature is very easy:
+Defining a WinAPI function's prototype is very easy:
 * If this call is contained in what we know as Win32 (documented Windows API), then look for the signature in the crate [windows](https://microsoft.github.io/windows-docs-rs/doc/windows/index.html).
 * If the call belongs to the undocumented part of the WinAPI, get the signature from the crate [ntapi](https://docs.rs/ntapi/latest/ntapi/).
-* If it is not defined in any of those crates, you will need to manually create the signature. Take a look at the existing examples in DInvoke in order to success in this task.
+* If it is not defined in any of those crates, you will need to manually create the signature. Take a look at the existing examples in `DInvoke_rs::dinvok` in order to success in this task.
 
-Once you know which parameters are expected and returned, go to the `data` crate and just define the function as a new data type:
+Once you know which parameters are expected and returned, just define the function's prototype as a new data type:
 ```rust
 pub type NewWinApiFunction = unsafe extern "system" fn (HANDLE, *mut PVOID, usize, *mut usize, u32, u32) -> i32; 
 ```
@@ -249,7 +252,7 @@ pub struct Struct {
     pub 0: i32
 }
 ```
-Here you have almost the same situation than before. If you want, you can import the struct from the corresponding crate, or you can define the struct manually in your code, but for me the simplest way of dealing with this is to consider that the WinAPI function expects an `i32` directly, getting rid of the struct and making it easier to implement the code. 
+Here you have almost the same situation than before. If you want, you can import the struct from the corresponding crate, or you can define the struct manually in your code, but for me the simplest way of dealing with this is to consider that the WinAPI function expects a `i32` directly, getting rid of the struct and making it easier to implement the code. 
 
 I think that the only struct like this that I keep in my projects is [HANDLE](https://microsoft.github.io/windows-docs-rs/doc/windows/Win32/Foundation/struct.HANDLE.html) (which has a single field, an isize), and I do so because it is a very commonly used struct and I feel like its presence makes the final code easier to understand for other people. 
 
@@ -262,7 +265,7 @@ When you are dealing with basic type pointers, you can cast between them using t
 let a: *mut i32 = get_i32_mut();
 let b: *mut u64 = a as *mut u64;
 ```
-However, most of the time you will be dealing with WinAPI structs and types pointers. In that case, you can use the function `std::mem::transmute()` or use once again the keyword `as`:
+However, most of the time you will be dealing with WinAPI structs and pointers. In that case, you can use the function `std::mem::transmute()` or use once again the keyword `as`:
 ```rust
 // Example 1
 let a: *mut ComplexStruct = get_complexstruct_pointer();
@@ -321,7 +324,7 @@ let handle: HANDLE = HANDLE::default();
 println!("The memory address where the variable handle is located is 0x{:p}", &handle);
 ```
 ## Arithmetic operations
-There are several ways to increment/decrement a pointer in Rust, and this is required in many situations that involve the WinAPI. To me, the best way to increment or decrement a pointer is by using the functions `add()` and `sub()`. These functions expect one single input parameter, which is the offset to calculate from the starting pointer. 
+There are several ways to increment/decrement a pointer in Rust, and this is required in many situations that involve the WinAPI. To me, the best way to increment or decrement a pointer is by using the functions `add()` and `sub()`. These functions expect one single input parameter, which is the offset to calculate from the starting address. 
 
 Take into account that the final offset is different depending on the type of the pointer. A `add(1)` will increment by 8 bits a `*mut i8`, by 32 bits a `*mut i32` and by `size_of::<T>()` a `*mut T` pointer.
 ```rust
@@ -332,11 +335,11 @@ println!("{}", *ptr); // Second u8 in the buffer
 ptr = ptr.add(2); // ptr points to start_of_buffer + (8 * 3);
 println!("{}", *ptr); // Fourth u8 in the buffer
 ```
-You can also cast the pointer into a `usize` and then add or sub any desired offset (in bits):
+You can also cast the pointer into a `usize` and then add or sub any desired offset (in bytes):
 ```rust
 let ptr: usize = get_pointer_to_buffer() as usize;
 let ptr2: *mut u32 = (ptr + 2) as *mut u32;
-println!("{}", *ptr2); // Here we would be printing the 32 bits unsigned number located at start_of_buffer + 2;
+println!("{}", *ptr2); // Here we would be printing the 32 bits unsigned number located at address start_of_buffer + 2;
 ```
 
 # Compile
@@ -353,7 +356,7 @@ strip = true        # Strip symbols from binary*
 ``` 
 Then, all you have to do is to compile in release mode using `cargo build --release`. This info has been obtained from [this answer](https://stackoverflow.com/questions/29008127/why-are-rust-executables-so-huge) where you can also find additional tips on this topic.
 
-Take into account that you might not want to use some of those flags in your project by default (for example, `panic = 'abort'` will reduce de binary size by removing unwind data, making it impossible to recover from an unexpected exception). In my experience, the only flags that you can use without worrying at all are `opt-level = 'z'` and `strip = true`; for the others, make sure you test the resulting binary before using it on a production environment or a client.
+Take into account that you might not want to use some of those flags in your project by default (for example, `panic = 'abort'` will reduce de binary size by removing unwinding data, making it impossible to recover from an unexpected exception). In my experience, the only flag that you can use without worrying at all is `strip = true`; for the others, make sure you test the resulting binary before using it on a production environment or a client. 
 
 ## Compile to dll
 Rust projects can be compiled to different artifacts: .lib, .exe, .dll, .so, etc. By default, in Windows your code will be compiled to .exe format, but I have found very useful to be able to compile my code into a native dll as I would do from other languages like C or C++.
@@ -396,17 +399,17 @@ You will see that I don't really know the origin/cause of some of the issues I w
 ## transmute
 Let's have a look at the following code:
 ```rust
-let handle = GetCurrentProcess();
+let handle = HANDLE(-1);
 let base_address: *mut PVOID = std::mem::transmute(&usize::default());
 let zero_bits = 0 as usize;
 let size: *mut usize = std::mem::transmute(&dwsize);
-let ret = dinvoke::nt_allocate_virtual_memory(handle, base_address, zero_bits, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+let ret = dinvoke_rs::dinvoke::nt_allocate_virtual_memory(handle, base_address, zero_bits, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 ```
-Here I'm just calling NtAllocateVirtualMemory to allocate a certain amount of memory. Well, this code will work 99% of the times, but the remaining 1% will fail "for no reason" leading to every sort of unexpected behavior. 
+Here I'm just calling NtAllocateVirtualMemory to allocate a certain amount of memory. Well, this code will work 99% of the times, but the remaining 1% will fail "for no reason" leading to all sort of unexpected behavior. 
 
-Don't ask me why this happens because I don't really know it, but this situation arises when you pass the output of the method `default()` as a reference directly into the method `transmute()`. So the best way to remove that 1% chance of unexpected failure is to rewrite the previous code like this:
+Don't ask me why it happens because I don't really know, but this situation arises when you pass the output of the method `default()` as a reference directly into the method `transmute()`. So the best way to remove that 1% chance of unexpected failure is to rewrite the previous code like this:
 ```rust
-let handle = GetCurrentProcess();
+let handle = HANDLE(-1);
 let a = usize::default(); // This is the key line
 let base_address: *mut PVOID = std::mem::transmute(&a);
 let zero_bits = 0 as usize;
