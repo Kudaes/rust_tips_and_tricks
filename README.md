@@ -604,7 +604,7 @@ windebug_logger::log::debug!("This print can be retrieved with dbgview!");
 * [windows](https://microsoft.github.io/windows-docs-rs/doc/windows/index.html) and [ntapi](https://docs.rs/ntapi/latest/ntapi/index.html) crates.
 * [At the end of this post](https://sebnilsson.com/blog/from-csharp-to-rust-code-basics/) you can find a primitives comparison between C# and Rust data types, very useful to carry out a port of code between the two languages.
 * Rust also has [macros](https://doc.rust-lang.org/1.30.0/book/first-edition/macros.html) that are a very powerful feature for offensive tools development.
-* Check out [this post](https://kerkour.com/rust-position-independent-shellcode) if you want to reate PIC shellcode.
+* Check out [this post](https://kerkour.com/rust-position-independent-shellcode) if you want to create PIC shellcode.
 * Again, [a very interesting discussion](https://stackoverflow.com/questions/29008127/why-are-rust-executables-so-huge) about Rust executable's size and how to minimize them.
 * [More](https://github.com/johnthagen/min-sized-rust) about minimizing Rust binaries.
 * A little bit of extra info about [nightly channel](https://web.mit.edu/rust-lang_v1.25/arch/amd64_ubuntu1404/share/doc/rust/html/book/second-edition/ch01-03-how-rust-is-made-and-nightly-rust.html).
