@@ -30,6 +30,7 @@ I don't consider myself an expert or guru in Rust, which means that they could b
   - [Wide char strings](#wide-char-strings)
   - [Encrypt string literals](#encrypt-string-literals)
   - [Remove absolute paths](#remove-absolute-paths)
+  - [Debug prints](#debug-prints)
 - [Resources](#resources)
 - [Contribution](#contribution)
 
@@ -582,6 +583,21 @@ The only absolute path not affected by this flag is the .pdb path. To remove thi
 [profile.release]
 strip = true 
 ...
+```
+## Debug prints
+For those situations where stdout/stderr do not work but you still want to print message to debug your code (e.g. you are implementing a COM object or a DLL that will be loaded by a service) it may be useful to use the crate [windebug_logger](https://docs.rs/windebug_logger/latest/windebug_logger/). With this crate, you can "redirect all messages to OutputDebugStringW", allowing you to retrieve them using [dbgvbiew](https://learn.microsoft.com/es-es/sysinternals/downloads/debugview) or any other alike tool.
+
+To use this crate, your first need to call the function `init`. This function should be called **only once** during the process lifespan, so make sure to implement some sort of control mechanism to prevent successive calls:
+```rust
+if CONTROL == 0 // Not safe for multithreaded executions
+{
+  CONTROL = 1;
+  let _ = windebug_logger::init();
+}
+```
+Once the logger has been initializated, the `debug!()` macro can be called to generate debug prints that can be retrieved with dbgview:
+```rust
+windebug_logger::log::debug!("This print can be retrieved with dbgview!");
 ```
 
 # Resources
