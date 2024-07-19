@@ -427,17 +427,16 @@ To fix this, you need to statically link that dll. First, add the following line
 [build-dependencies]
 static_vcruntime = "2.0"
 ```
-Then, add a file named `build.rs` in the root of your project with this content:
+Then, add a file named `build.rs` at the root of your project with this content:
 ```rust
  fn main() {
     static_vcruntime::metabuild();
 }
 ```
-Then recompile and the issue will be gone.
+Then recompile and the issue will be gone. **This method only seems to be working to compile dlls**. 
 
-Another way of doing this same thing is to create a `.cargo` folder in the root of the project, and place a `Cargo.toml` file inside of it with the following content:
+Another way to accomplish the same goal is to create a `.cargo` folder in the root of the project, and place a `config` file inside of it with the following content. This second method is recommended if you are compiling your project into a `.exe`:
 ```rust
-[target.'cfg(all(windows, target_env = "msvc"))']
 rustflags = ["-C", "target-feature=+crt-static"]
 ```
 
