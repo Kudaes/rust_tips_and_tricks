@@ -584,7 +584,7 @@ strip = true
 ...
 ```
 ## Debug prints
-For those situations where stdout/stderr do not work but you still want to print message to debug your code (e.g. you are implementing a COM object or a DLL that will be loaded by a service) it may be useful to use the crate [windebug_logger](https://docs.rs/windebug_logger/latest/windebug_logger/). With this crate, you can "redirect all messages to OutputDebugStringW", allowing you to retrieve them using [dbgvbiew](https://learn.microsoft.com/es-es/sysinternals/downloads/debugview) or any other alike tool.
+For those situations where stdout/stderr do not work but you still want to print message to debug your code (e.g. you are implementing a COM object or a DLL that will be loaded by a service) it may be useful to use the crate [windebug_logger](https://docs.rs/windebug_logger/latest/windebug_logger/). With this crate, you can "redirect all messages to OutputDebugStringW", allowing you to retrieve them using [dbgview](https://learn.microsoft.com/es-es/sysinternals/downloads/debugview) or any other alike tool.
 
 To use this crate, your first need to call the function `init`. This function should be called **only once** during the process lifespan, so make sure to implement some sort of control mechanism to prevent successive calls:
 ```rust
