@@ -443,7 +443,7 @@ rustflags = ["-C", "target-feature=+crt-static"]
 This compiler flag will statically link **the entire C runtime**, meaning both VCRuntime and UCRT. This increases the final executable size but also removes all IAT entries regarding the C runtime.
 
 ## Nightly
-Some experimental features are only available using the nightly channel. For example, in [Unwinder](https://github.com/Kudaes/Unwinder) I used the intrinsic `llvm.addressofreturnaddress` in order to get the memory address where the next return address was located in the stack. This intrinsic was only available in the nightly channel, but it was pretty useful and made my life way easier.
+Some experimental features are only available using the nightly channel. For example, in old releases of [Unwinder](https://github.com/Kudaes/Unwinder) I used the intrinsic `llvm.addressofreturnaddress` in order to get the memory address where the next return address was located in the stack. This intrinsic was only available in the nightly channel, but it was pretty useful and made my life way easier.
 
 If you want to use some cool feature only available in nightly, you just need to install the corresponding toolchain:
 ```
