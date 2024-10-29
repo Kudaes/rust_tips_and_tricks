@@ -422,7 +422,7 @@ Here you can see that first I store the output from the trait `default()` in a t
 ## VCRuntime
 Many times you will receive the error message "The code execution cannot proceed because VCRUNTIME140.dll was not found" at the time of running your binaries on remote machines.
 
-To fix this, you need to statically link that dll. First, add the following line to `Cargo.toml`:
+To fix this, you need to statically link the so called VCRuntime. First, add the following line to `Cargo.toml`:
 ```rust
 [build-dependencies]
 static_vcruntime = "2.0"
@@ -433,12 +433,14 @@ Then, add a file named `build.rs` at the root of your project with this content:
     static_vcruntime::metabuild();
 }
 ```
-Then recompile and the issue will be gone. **This method only seems to be working to compile dlls**. 
+Then recompile and the issue will be gone.
 
-Another way to accomplish the same goal is to create a `.cargo` folder in the root of the project, and place a `config` file inside of it with the following content. This second method is recommended if you are compiling your project into a `.exe`:
+Another way to accomplish the same goal is to create a `.cargo` folder in the root of the project, and place a `config.toml` file inside of it with the following content:
 ```rust
 rustflags = ["-C", "target-feature=+crt-static"]
 ```
+
+This compiler flag will statically link **the entire C runtime**, meaning both VCRuntime and UCRT. This increases the final executable size but also removes all IAT entries regarding the C runtime.
 
 ## Nightly
 Some experimental features are only available using the nightly channel. For example, in [Unwinder](https://github.com/Kudaes/Unwinder) I used the intrinsic `llvm.addressofreturnaddress` in order to get the memory address where the next return address was located in the stack. This intrinsic was only available in the nightly channel, but it was pretty useful and made my life way easier.
